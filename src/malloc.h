@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <math.h>
 
 enum ZONE {
     TINY,
@@ -15,7 +16,7 @@ enum ZONE {
 typedef struct s_header {
     size_t size;
     bool is_free;
-    t_header *next;
+    struct s_header *next;
 } t_header;
 
 typedef struct s_allocator {
@@ -24,6 +25,7 @@ typedef struct s_allocator {
     t_header *large;
 } t_allocator;
 
-t_allocator *allocator = {NULL, NULL, NULL};
+extern t_allocator allocator;
+// extern keyword tells the compiler this is declaration only, no allocation
 
-void    *malloc(size_t size);
+void    *ft_malloc(size_t size);

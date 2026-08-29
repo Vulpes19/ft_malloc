@@ -30,8 +30,22 @@
 
 // Write test scripts to make multiple calls to malloc() of varying sizes and verify the returned pointers are valid and aligned.
 
-void *init_zone(size_t size, enum ZONE zone) {
-    int page_size = 0;
+t_allocator allocator = { NULL, NULL, NULL };
+
+int calculate_zone_size(size_t size, size_t page_size) {
+    size_t new_page_size = page_size;
+    printf("total size: %zu\n", size);
+    if (size > page_size) {
+        size_t f = (size + page_size - 1) / page_size;
+        new_page_size = page_size * f;
+    }
+
+    printf("new page size: %zu\n", new_page_size);
+    return new_page_size;
+}
+
+void init_zone(size_t size, enum ZONE zone) {
+    size_t page_size = 0;
 
     #ifdef __APPLE__
         page_size = getpagesize();
@@ -39,14 +53,35 @@ void *init_zone(size_t size, enum ZONE zone) {
         page_size = sysconf(_SC_PAGESIZE);
     #endif
 
-    
+    if (zone == TINY) {
+        allocator.tiny = mmap(NULL, calculate_zone_size(size * 100, page_size), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    }
+    else if (zone == SMALL) {
+        allocator.small = mmap(NULL, calculate_zone_size(size * 100, page_size), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    }
+    else {
+        allocator.large = mmap(NULL, calculate_zone_size(size, page_size), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    }
 }
 
-void    *malloc(size_t size) {
+void    *ft_malloc(size_t size) {
     size_t n = 128;
     size_t m = 1024;
-    void *ptr = NULL;
+    size_t total_size = size + sizeof(t_header);
+    printf("total size: %zu\n", total_size);
 
-    if (allocator->tiny == NULL && size <= 128)
-        init_zone(size, TINY);
+    if (allocator.tiny == NULL && size <= n) {
+        printf("TINY\n");
+        init_zone(total_size, TINY);
+    }
+    else if (allocator.small == NULL && size > n && size <= m) {
+        printf("SMALL\n");
+        init_zone(total_size, SMALL);
+    }
+    else {
+        printf("LARGE\n");
+        init_zone(total_size, LARGE);
+    }
+    
+    return NULL;
 }
