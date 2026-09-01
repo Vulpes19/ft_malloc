@@ -6,6 +6,9 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <math.h>
+#include <string.h>
+
+#define MIN_ALLOCATION_SIZE 8
 
 enum ZONE {
     TINY,
@@ -21,7 +24,9 @@ typedef struct s_header {
 
 typedef struct s_allocator {
     t_header *tiny;
+    size_t  tiny_zone_size;
     t_header *small;
+    size_t  small_zone_size;
     t_header *large;
 } t_allocator;
 
