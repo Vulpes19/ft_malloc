@@ -83,6 +83,7 @@ void    *split_block(size_t total_size, t_header *zone_ptr, size_t zone_size) {
     return NULL;
 }
 
+
 void    *allocate_new_zone_region(size_t total_size, t_header *zone_ptr, size_t zone_size) {
     void *zone_end_ptr = (void*)zone_ptr + zone_size;
     t_header *new_region = mmap(NULL, zone_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -137,14 +138,27 @@ void init_zone(size_t size, enum ZONE zone) {
         allocator.small->next = NULL;
     }
     else {
-        allocator.large = mmap(NULL, calculate_zone_size(size, page_size), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (allocator.large == MAP_FAILED) {
+        t_header *new_large_zone = mmap(NULL, calculate_zone_size(size, page_size), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+        if (new_large_zone == MAP_FAILED) {
             fprintf(stderr, "mmap failed: %s\n", strerror(errno));
             exit(1);
         }
-        allocator.large->is_free = true;
-        allocator.large->size = size;
-        allocator.large->next = NULL;
+
+        new_large_zone->is_free = true;
+        new_large_zone->size = size;
+        new_large_zone->next = NULL;
+
+        if (allocator.large == NULL) {
+            allocator.large = new_large_zone;
+        }
+        else {
+            t_header    *head = allocator.large;
+            while (head->next) {
+                head = head->next;
+            }
+            head->next = new_large_zone;
+        }
     }
 }
 
@@ -177,8 +191,15 @@ void    *ft_malloc(size_t size) {
     else if (size > m) {
         printf("LARGE\n");
         init_zone(total_size, LARGE);
-        res_ptr = split_block(total_size, allocator.large, total_size);
-        return res_ptr;
+        t_header *head = allocator.large;
+        while (head) {
+            if (head->is_free == true) {
+                head->is_free = false;
+                res_ptr = (void*)head;
+            }
+            head = head->next;
+        }
+        return res_ptr + sizeof(t_header);
     }
 
     return NULL;
