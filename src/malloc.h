@@ -8,7 +8,7 @@
 #include <math.h>
 #include <string.h>
 
-#define MIN_ALLOCATION_SIZE 8
+#define MIN_ALLOCATION_SIZE 41
 
 enum ZONE {
     TINY,
