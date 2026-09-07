@@ -1,9 +1,9 @@
-NAME = ft_ls
+NAME = malloc
 
 CC = cc
 CFLAGS = -fsanitize=address -g -Wall -Wextra -Werror
 
-SRC = src/main.c
+SRC = src/main.c src/malloc.c src/free.c
 OBJ = $(SRC:.c=.o)
 
 LIBFT_DIR = Libft
