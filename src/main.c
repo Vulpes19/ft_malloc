@@ -1,88 +1,112 @@
-#include <unistd.h>
-#include <stdio.h>
 #include "malloc.h"
-
-void    test_tiny_zone(void) {
-    printf("🧪 Starting Multiple Zone Test...\n\n");
-
-    void *ptrs[150];
-
-    for (int i = 0; i < 150; i++) {
-        ptrs[i] = ft_malloc(100);
-
-        if (ptrs[i] == NULL) {
-            printf("❌ Allocation %d failed!\n", i);
-            return ;
-        }
-
-        // Print the address returned so we can inspect memory gaps!
-        printf("Alloc %d: Payload address = %p\n", i, ptrs[i]);
+// Helper function to print a single block's state
+void print_block(const char *label, t_header *block) {
+    if (!block) {
+        printf("  %-15s: NULL\n", label);
+        return;
     }
-
-    printf("\n✅ Successfully allocated across multiple zones!\n");
+    printf("  %-15s: [Addr: %p | Size: %4zu | Free: %s | Prev: %p | Next: %p]\n",
+           label,
+           (void*)block,
+           block->size,
+           block->is_free ? "YES" : " NO",
+           (void*)block->prev,
+           (void*)block->next);
 }
 
-void test_small_zone(void) {
-    printf("\n====================================\n");
-    printf("        TESTING SMALL ZONE          \n");
-    printf("====================================\n");
-
-    // Allocation size: 512 bytes (TINY <= 128, SMALL <= 1024)
-    size_t alloc_size = 512;
-    int num_allocs = 35; // 35 * ~512 bytes > 16384 (16KB page)
-    void *ptrs[35];
-
-    printf("--> Allocating %d blocks of %zu bytes...\n", num_allocs, alloc_size);
-
-    for (int i = 0; i < num_allocs; i++) {
-        ptrs[i] = ft_malloc(alloc_size);
-
-        if (ptrs[i] == NULL) {
-            printf("❌ Alloc %d failed (NULL)\n", i);
-            break;
-        }
-
-        // Fill memory with dummy data to ensure address is writable
-        memset(ptrs[i], 0xAB, alloc_size);
-
-        // Print key address steps to observe page boundary crossings
-        if (i == 0 || i == 31 || i == 32) {
-            printf("  Alloc %2d: ptr = %p\n", i, ptrs[i]);
-        }
-    }
+// Helper to manually create contiguous headers in a dummy memory buffer
+t_header *setup_dummy_block(void *buffer_addr, size_t size, bool is_free) {
+    t_header *h = (t_header *)buffer_addr;
+    h->size = size;
+    h->is_free = is_free;
+    h->next = NULL;
+    h->prev = NULL;
+    return h;
 }
 
-void test_large_zone(void) {
-    printf("\n====================================\n");
-    printf("        TESTING LARGE ZONE          \n");
-    printf("====================================\n");
+void run_coalesce_tests(void) {
+    printf("===================================================\n");
+    printf("       🧪 RUNNING FT_FREE COALESCING TESTS        \n");
+    printf("===================================================\n\n");
 
-    // Case 1: Just over SMALL limit (e.g., 2048 bytes)
-    printf("--> Requesting 2048 bytes (Just over SMALL boundary)\n");
-    void *p1 = ft_malloc(2048);
-    if (p1) memset(p1, 'A', 2048);
-    printf("  p1 address = %p\n", p1);
+    // Create a 1KB local buffer simulating a TINY page region
+    char memory_page[1024];
 
-    // Case 2: Multi-page LARGE allocation (e.g., 50,000 bytes > 16KB page)
-    printf("--> Requesting 50000 bytes (Multi-page request)\n");
-    void *p2 = ft_malloc(50000);
-    if (p2) memset(p2, 'B', 50000);
-    printf("  p2 address = %p\n", p2);
-}
-
-int main() {
-    // char *ptr1 = ft_malloc(200); // First SMALL allocation
-    // char *ptr2 = ft_malloc(300); // Second SMALL allocation
-    // char *ptr3 = ft_malloc(6000); // Third SMALL allocation
-    // char *ptr4 = ft_malloc(6000); // Fourth SMALL allocation
-
-    // printf("ptr1 address: %p\n", (void *)ptr1);
-    // printf("ptr2 address: %p\n", (void *)ptr2);
-    // printf("ptr3 address: %p\n", (void *)ptr3);
-    // printf("ptr4 address: %p\n", (void *)ptr4);
+    // -------------------------------------------------------------
+    // TEST 1: Forward Merge (Right Neighbor Free)
+    // -------------------------------------------------------------
+    printf("--- Test 1: Forward Merge (Freeing B when C is free) ---\n");
     
+    // Layout: [ Block B (Busy, 64B) ] <-> [ Block C (Free, 128B) ]
+    t_header *b1 = setup_dummy_block(memory_page, 64, false);
+    t_header *c1 = setup_dummy_block(memory_page + sizeof(t_header) + 64, 128, true);
     
-    // test_small_zone();
-    test_large_zone();
+    b1->next = c1;
+    c1->prev = b1;
+
+    printf("BEFORE free(B):\n");
+    print_block("Block B (ptr)", b1);
+    print_block("Block C", c1);
+
+    // Pass the payload address (after header)
+    ft_free((void*)b1 + sizeof(t_header));
+
+    printf("AFTER free(B):\n");
+    print_block("Merged Block B", b1);
+    printf("Expected Size: %zu (64 + 128 + %zu)\n\n", 64 + 128 + sizeof(t_header), sizeof(t_header));
+
+    // -------------------------------------------------------------
+    // TEST 2: Backward Merge (Left Neighbor Free)
+    // -------------------------------------------------------------
+    printf("--- Test 2: Backward Merge (Freeing B when A is free) ---\n");
+    
+    // Layout: [ Block A (Free, 64B) ] <-> [ Block B (Busy, 64B) ]
+    t_header *a2 = setup_dummy_block(memory_page, 64, true);
+    t_header *b2 = setup_dummy_block(memory_page + sizeof(t_header) + 64, 64, false);
+
+    a2->next = b2;
+    b2->prev = a2;
+
+    printf("BEFORE free(B):\n");
+    print_block("Block A", a2);
+    print_block("Block B (ptr)", b2);
+
+    ft_free((void*)b2 + sizeof(t_header));
+
+    printf("AFTER free(B):\n");
+    print_block("Merged Block A", a2);
+    printf("Expected Size: %zu (64 + 64 + %zu)\n\n", 64 + 64 + sizeof(t_header), sizeof(t_header));
+
+    // -------------------------------------------------------------
+    // TEST 3: Double Coalesce (Both Neighbors Free)
+    // -------------------------------------------------------------
+    printf("--- Test 3: Double Coalesce (Freeing B when A & C are free) ---\n");
+    
+    // Layout: [ Block A (Free, 64B) ] <-> [ Block B (Busy, 32B) ] <-> [ Block C (Free, 128B) ]
+    t_header *a3 = setup_dummy_block(memory_page, 64, true);
+    t_header *b3 = setup_dummy_block(memory_page + sizeof(t_header) + 64, 32, false);
+    t_header *c3 = setup_dummy_block((void*)b3 + sizeof(t_header) + 32, 128, true);
+
+    a3->next = b3;
+    b3->prev = a3;
+    b3->next = c3;
+    c3->prev = b3;
+
+    printf("BEFORE free(B):\n");
+    print_block("Block A", a3);
+    print_block("Block B (ptr)", b3);
+    print_block("Block C", c3);
+
+    ft_free((void*)b3 + sizeof(t_header));
+
+    printf("AFTER free(B):\n");
+    print_block("Merged Block A", a3);
+    print_block("A->next", a3->next);
+    printf("Expected Size: %zu (64 + 32 + 128 + 2*%zu)\n\n", 
+           64 + 32 + 128 + (2 * sizeof(t_header)), sizeof(t_header));
+}
+
+int main(void) {
+    run_coalesce_tests();
     return 0;
 }

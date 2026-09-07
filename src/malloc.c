@@ -70,6 +70,7 @@ void    *split_block(size_t total_size, t_header *zone_ptr, size_t zone_size) {
                 printf("is_free: true\nblock end ptr: %zu\n**********\n", remaining_size);
     
                 head->next = block_end_ptr;
+                block_end_ptr->prev = head;
             }
             else {
                 return NULL;
@@ -98,6 +99,7 @@ void    *allocate_new_zone_region(size_t total_size, t_header *zone_ptr, size_t 
     t_header *header_end_ptr = zone_end_ptr;
 
     header_end_ptr->next = new_region;
+    new_region->prev = header_end_ptr;
     zone_ptr->size = zone_size + new_region->size;
 
     void *res_ptr = split_block(total_size, zone_ptr, zone_ptr->size);
@@ -124,6 +126,7 @@ void init_zone(size_t size, enum ZONE zone) {
         allocator.tiny->is_free = true;
         allocator.tiny->size = zone_size;
         allocator.tiny->next = NULL;
+        allocator.tiny->prev = NULL;
     }
     else if (zone == SMALL) {
         size_t zone_size = calculate_zone_size(size * 100, page_size);
@@ -136,9 +139,11 @@ void init_zone(size_t size, enum ZONE zone) {
         allocator.small->is_free = true;
         allocator.small->size = zone_size;
         allocator.small->next = NULL;
+        allocator.small->prev = NULL;
     }
     else {
-        t_header *new_large_zone = mmap(NULL, calculate_zone_size(size, page_size), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        size_t large_size = calculate_zone_size(size, page_size);
+        t_header *new_large_zone = mmap(NULL, large_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
         if (new_large_zone == MAP_FAILED) {
             fprintf(stderr, "mmap failed: %s\n", strerror(errno));
@@ -146,8 +151,9 @@ void init_zone(size_t size, enum ZONE zone) {
         }
 
         new_large_zone->is_free = true;
-        new_large_zone->size = size;
+        new_large_zone->size = large_size;
         new_large_zone->next = NULL;
+        new_large_zone->prev = NULL;
 
         if (allocator.large == NULL) {
             allocator.large = new_large_zone;
@@ -158,6 +164,7 @@ void init_zone(size_t size, enum ZONE zone) {
                 head = head->next;
             }
             head->next = new_large_zone;
+            new_large_zone->prev = head;
         }
     }
 }

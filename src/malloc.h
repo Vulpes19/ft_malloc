@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <string.h>
+#include <errno.h>
 
 #define MIN_ALLOCATION_SIZE 41
 
@@ -20,6 +21,7 @@ typedef struct s_header {
     size_t size;
     bool is_free;
     struct s_header *next;
+    struct s_header *prev;
 } t_header;
 
 typedef struct s_allocator {
@@ -34,3 +36,4 @@ extern t_allocator allocator;
 // extern keyword tells the compiler this is declaration only, no allocation
 
 void    *ft_malloc(size_t size);
+void    ft_free(void *ptr);
