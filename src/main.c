@@ -1,112 +1,169 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 #include "malloc.h"
-// Helper function to print a single block's state
-void print_block(const char *label, t_header *block) {
-    if (!block) {
-        printf("  %-15s: NULL\n", label);
-        return;
+
+// Assume your custom allocator functions are declared here:
+// void *ft_malloc(size_t size);
+// void ft_free(void *ptr);
+// void *ft_realloc(void *ptr, size_t size);
+
+void test_null_and_zero(void) {
+    printf("1. Testing NULL pointer and size 0... 🧪\n");
+
+    // NULL pointer should act like ft_malloc
+    void *ptr = ft_realloc(NULL, 64);
+    assert(ptr != NULL);
+
+    // Size 0 should act like ft_free and return NULL
+    void *ret = ft_realloc(ptr, 0);
+    assert(ret == NULL);
+
+    printf("   PASSED! ✅\n\n");
+}
+
+void test_shrink_in_place(void) {
+    printf("2. Testing in-place shrinking... 🧪\n");
+
+    char *ptr = ft_malloc(256);
+    printf("%p\n", ptr);
+    assert(ptr != NULL);
+    
+    // Fill payload with a pattern
+    memset(ptr, 'A', 255);
+    ptr[255] = '\0';
+
+    // Shrink from 256 bytes down to 64 bytes
+    char *new_ptr = ft_realloc(ptr, 64);
+
+    // Pointer address MUST remain identical for in-place shrink
+    assert(new_ptr == ptr);
+
+    // Verify payload data was preserved
+    for (int i = 0; i < 63; i++) {
+        assert(new_ptr[i] == 'A');
     }
-    printf("  %-15s: [Addr: %p | Size: %4zu | Free: %s | Prev: %p | Next: %p]\n",
-           label,
-           (void*)block,
-           block->size,
-           block->is_free ? "YES" : " NO",
-           (void*)block->prev,
-           (void*)block->next);
+
+    ft_free(new_ptr);
+    printf("   PASSED! ✅\n\n");
 }
 
-// Helper to manually create contiguous headers in a dummy memory buffer
-t_header *setup_dummy_block(void *buffer_addr, size_t size, bool is_free) {
-    t_header *h = (t_header *)buffer_addr;
-    h->size = size;
-    h->is_free = is_free;
-    h->next = NULL;
-    h->prev = NULL;
-    return h;
+void test_expand_in_place(void) {
+    printf("3. Testing in-place expansion (free neighbor)... 🧪\n");
+
+    // Allocate two adjacent blocks
+    char *block1 = ft_malloc(64);
+    char *block2 = ft_malloc(64);
+    assert(block1 != NULL && block2 != NULL);
+
+    memset(block1, 'B', 63);
+    block1[63] = '\0';
+
+    // Free block2 so it becomes a free neighbor for block1
+    ft_free(block2);
+
+    // Realloc block1 to absorb block2's space (up to 128 bytes)
+    char *new_block1 = ft_realloc(block1, 128);
+
+    // Base pointer MUST remain identical because it expanded into the free neighbor
+    assert(new_block1 == block1);
+
+    // Verify existing payload data is intact
+    for (int i = 0; i < 63; i++) {
+        assert(new_block1[i] == 'B');
+    }
+
+    ft_free(new_block1);
+    printf("   PASSED! ✅\n\n");
 }
 
-void run_coalesce_tests(void) {
-    printf("===================================================\n");
-    printf("       🧪 RUNNING FT_FREE COALESCING TESTS        \n");
-    printf("===================================================\n\n");
+void test_fallback_copy(void) {
+    printf("4. Testing fallback allocation & copy... 🧪\n");
 
-    // Create a 1KB local buffer simulating a TINY page region
-    char memory_page[1024];
+    // Allocate block1 and block2
+    char *block1 = ft_malloc(64);
+    char *block2 = ft_malloc(64); // Kept busy so block1 CANNOT expand in place
 
-    // -------------------------------------------------------------
-    // TEST 1: Forward Merge (Right Neighbor Free)
-    // -------------------------------------------------------------
-    printf("--- Test 1: Forward Merge (Freeing B when C is free) ---\n");
-    
-    // Layout: [ Block B (Busy, 64B) ] <-> [ Block C (Free, 128B) ]
-    t_header *b1 = setup_dummy_block(memory_page, 64, false);
-    t_header *c1 = setup_dummy_block(memory_page + sizeof(t_header) + 64, 128, true);
-    
-    b1->next = c1;
-    c1->prev = b1;
+    memset(block1, 'C', 63);
+    block1[63] = '\0';
 
-    printf("BEFORE free(B):\n");
-    print_block("Block B (ptr)", b1);
-    print_block("Block C", c1);
+    // Realloc block1 to a size that cannot fit in place (256 bytes)
+    char *new_block1 = ft_realloc(block1, 256);
 
-    // Pass the payload address (after header)
-    ft_free((void*)b1 + sizeof(t_header));
+    // New pointer MUST be different from the original pointer
+    assert(new_block1 != block1);
 
-    printf("AFTER free(B):\n");
-    print_block("Merged Block B", b1);
-    printf("Expected Size: %zu (64 + 128 + %zu)\n\n", 64 + 128 + sizeof(t_header), sizeof(t_header));
+    // Verify original data was correctly copied over to the new block
+    for (int i = 0; i < 63; i++) {
+        assert(new_block1[i] == 'C');
+    }
 
-    // -------------------------------------------------------------
-    // TEST 2: Backward Merge (Left Neighbor Free)
-    // -------------------------------------------------------------
-    printf("--- Test 2: Backward Merge (Freeing B when A is free) ---\n");
-    
-    // Layout: [ Block A (Free, 64B) ] <-> [ Block B (Busy, 64B) ]
-    t_header *a2 = setup_dummy_block(memory_page, 64, true);
-    t_header *b2 = setup_dummy_block(memory_page + sizeof(t_header) + 64, 64, false);
-
-    a2->next = b2;
-    b2->prev = a2;
-
-    printf("BEFORE free(B):\n");
-    print_block("Block A", a2);
-    print_block("Block B (ptr)", b2);
-
-    ft_free((void*)b2 + sizeof(t_header));
-
-    printf("AFTER free(B):\n");
-    print_block("Merged Block A", a2);
-    printf("Expected Size: %zu (64 + 64 + %zu)\n\n", 64 + 64 + sizeof(t_header), sizeof(t_header));
-
-    // -------------------------------------------------------------
-    // TEST 3: Double Coalesce (Both Neighbors Free)
-    // -------------------------------------------------------------
-    printf("--- Test 3: Double Coalesce (Freeing B when A & C are free) ---\n");
-    
-    // Layout: [ Block A (Free, 64B) ] <-> [ Block B (Busy, 32B) ] <-> [ Block C (Free, 128B) ]
-    t_header *a3 = setup_dummy_block(memory_page, 64, true);
-    t_header *b3 = setup_dummy_block(memory_page + sizeof(t_header) + 64, 32, false);
-    t_header *c3 = setup_dummy_block((void*)b3 + sizeof(t_header) + 32, 128, true);
-
-    a3->next = b3;
-    b3->prev = a3;
-    b3->next = c3;
-    c3->prev = b3;
-
-    printf("BEFORE free(B):\n");
-    print_block("Block A", a3);
-    print_block("Block B (ptr)", b3);
-    print_block("Block C", c3);
-
-    ft_free((void*)b3 + sizeof(t_header));
-
-    printf("AFTER free(B):\n");
-    print_block("Merged Block A", a3);
-    print_block("A->next", a3->next);
-    printf("Expected Size: %zu (64 + 32 + 128 + 2*%zu)\n\n", 
-           64 + 32 + 128 + (2 * sizeof(t_header)), sizeof(t_header));
+    ft_free(new_block1);
+    ft_free(block2);
+    printf("   PASSED! ✅\n\n");
 }
 
+void test_heavy_churn_and_coalescing(void) {
+    printf("5. Testing heavy allocation churn & coalescing... 🧪\n");
+
+    void *ptrs[100];
+
+    // Phase 1: Allocate 100 blocks
+    for (int i = 0; i < 100; i++) {
+        ptrs[i] = ft_malloc(32 + (i % 4) * 16);
+        assert(ptrs[i] != NULL);
+    }
+
+    // Phase 2: Free every EVEN index to create a "checkerboard" pattern of free blocks
+    for (int i = 0; i < 100; i += 2) {
+        ft_free(ptrs[i]);
+    }
+
+    // Phase 3: Expand odd-indexed blocks in place into their freed neighbors
+    for (int i = 1; i < 100; i += 2) {
+        void *old_ptr = ptrs[i];
+        // Request double size — should merge with freed ptrs[i-1] or ptrs[i+1]
+        void *new_ptr = ft_realloc(old_ptr, 96);
+        assert(new_ptr == old_ptr); 
+    }
+
+    // Cleanup remaining blocks
+    for (int i = 1; i < 100; i += 2) {
+        ft_free(ptrs[i]);
+    }
+
+    printf("   PASSED! ✅\n\n");
+}
+
+void test_exact_boundary_split(void) {
+    printf("6. Testing exact boundary split threshold... 🧪\n");
+
+    // Allocate 128 bytes
+    char *ptr = ft_malloc(128);
+    assert(ptr != NULL);
+
+    // Realloc down to a size that leaves EXACTLY not enough room for a header + MIN_ALLOC
+    // e.g., leftover is sizeof(t_header) + MIN_ALLOC - 1
+    size_t target_leftover = sizeof(t_header) + 16 - 1; // Assuming MIN_ALLOCATION_SIZE is 16
+    size_t new_size = 128 - target_leftover;
+
+    char *new_ptr = ft_realloc(ptr, new_size);
+    assert(new_ptr == ptr); // Must shrink in place WITHOUT splitting
+
+    ft_free(new_ptr);
+    printf("   PASSED! ✅\n\n");
+}
 int main(void) {
-    run_coalesce_tests();
+    printf("========== RUNNING FT_REALLOC TEST SUITE ==========\n\n");
+
+    test_null_and_zero();
+    test_shrink_in_place();
+    test_expand_in_place();
+    test_fallback_copy();
+    test_heavy_churn_and_coalescing();
+    test_exact_boundary_split();
+
+    printf("================ ALL TESTS PASSED! 🎉 ================\n");
     return 0;
 }
