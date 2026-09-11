@@ -52,7 +52,7 @@ void    *split_block(size_t total_size, t_header *zone_ptr, size_t zone_size) {
 
     while (head) {
         if (head->is_free == true) {
-            size_t remaining_size = head->size - total_size;
+            size_t remaining_size = (head->size >= total_size) ? head->size - total_size : total_size - head->size;
 
             void *block_end_addr = (void *)head + total_size;
 

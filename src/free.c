@@ -34,7 +34,8 @@ void    merge_neighbors(t_header *curr_n, t_header *curr_p, t_header *header_ptr
         header_ptr->size += curr_n->size + + sizeof(t_header);
     }
     if (curr_p && curr_p->is_free == true) {
-        header_ptr->next->prev = curr_p;
+        if (header_ptr->next)
+            header_ptr->next->prev = curr_p;
         curr_p->size += header_ptr->size + sizeof(t_header);
         curr_p->next = header_ptr->next;
         if (header_ptr->next) {
@@ -62,7 +63,9 @@ void    ft_free(void *ptr) {
     if (!ptr)
         return ;
     
-    t_header *header = (void*)ptr - sizeof(t_header);
+    t_header *header = (t_header *)((char*)ptr - sizeof(t_header));
+    if (!header || (header && header->is_free))
+        return ;
     size_t m = 1024;
     size_t size = header->size;
     

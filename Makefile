@@ -3,7 +3,7 @@ NAME = malloc
 CC = cc
 CFLAGS = -fsanitize=address -g -Wall -Wextra -Werror
 
-SRC = src/main.c src/malloc.c src/free.c
+SRC = src/main.c src/malloc.c src/free.c src/realloc.c
 OBJ = $(SRC:.c=.o)
 
 LIBFT_DIR = Libft
