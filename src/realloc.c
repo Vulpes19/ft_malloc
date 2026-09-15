@@ -21,12 +21,12 @@
 // Refactor code, remove debug prints, and test edge cases (allocating 0 bytes, extremely large requests, etc.).
 
 void    *allocate_new_region(t_header *head_ptr, size_t new_size) {
-    void *ret = ft_malloc(new_size);
+    void *ret = malloc(new_size);
     if (!ret)
         return NULL;
     
     ret = ft_memcpy(ret, (void*)head_ptr + sizeof(t_header), (head_ptr->size > new_size) ? new_size : head_ptr->size);
-    ft_free(head_ptr);
+    free(head_ptr);
     
     return ret;
 }
@@ -74,15 +74,15 @@ void    *check_neighbor(t_header *head_ptr, size_t new_size) {
     }
 }
 
-void    *ft_realloc(void *ptr, size_t size) {
+void    *realloc(void *ptr, size_t size) {
     printf("%p\n", ptr);
     if (!ptr) {
         printf("***** malloc case *****\n");
-        return ft_malloc(size);
+        return malloc(size);
     }
     
     if (size == 0) {
-        ft_free(ptr);
+        free(ptr);
         return NULL;
     }
 

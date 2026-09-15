@@ -26,7 +26,7 @@ t_header *setup_dummy_block(void *buffer_addr, size_t size, bool is_free) {
 
 void run_coalesce_tests(void) {
     printf("===================================================\n");
-    printf("       🧪 RUNNING FT_FREE COALESCING TESTS        \n");
+    printf("       🧪 RUNNING free COALESCING TESTS        \n");
     printf("===================================================\n\n");
 
     // Create a 1KB local buffer simulating a TINY page region
@@ -49,7 +49,7 @@ void run_coalesce_tests(void) {
     print_block("Block C", c1);
 
     // Pass the payload address (after header)
-    ft_free((void*)b1 + sizeof(t_header));
+    free((void*)b1 + sizeof(t_header));
 
     printf("AFTER free(B):\n");
     print_block("Merged Block B", b1);
@@ -71,7 +71,7 @@ void run_coalesce_tests(void) {
     print_block("Block A", a2);
     print_block("Block B (ptr)", b2);
 
-    ft_free((void*)b2 + sizeof(t_header));
+    free((void*)b2 + sizeof(t_header));
 
     printf("AFTER free(B):\n");
     print_block("Merged Block A", a2);
@@ -97,7 +97,7 @@ void run_coalesce_tests(void) {
     print_block("Block B (ptr)", b3);
     print_block("Block C", c3);
 
-    ft_free((void*)b3 + sizeof(t_header));
+    free((void*)b3 + sizeof(t_header));
 
     printf("AFTER free(B):\n");
     print_block("Merged Block A", a3);

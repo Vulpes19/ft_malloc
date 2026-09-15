@@ -2,22 +2,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include "malloc.h"
+#include "./src/malloc.h"
 
 // Assume your custom allocator functions are declared here:
-// void *ft_malloc(size_t size);
-// void ft_free(void *ptr);
-// void *ft_realloc(void *ptr, size_t size);
+// void *malloc(size_t size);
+// void free(void *ptr);
+// void *realloc(void *ptr, size_t size);
 
 void test_null_and_zero(void) {
     printf("1. Testing NULL pointer and size 0... 🧪\n");
 
-    // NULL pointer should act like ft_malloc
-    void *ptr = ft_realloc(NULL, 64);
+    // NULL pointer should act like malloc
+    void *ptr = realloc(NULL, 64);
     assert(ptr != NULL);
 
-    // Size 0 should act like ft_free and return NULL
-    void *ret = ft_realloc(ptr, 0);
+    // Size 0 should act like free and return NULL
+    void *ret = realloc(ptr, 0);
     assert(ret == NULL);
 
     printf("   PASSED! ✅\n\n");
@@ -26,7 +26,7 @@ void test_null_and_zero(void) {
 void test_shrink_in_place(void) {
     printf("2. Testing in-place shrinking... 🧪\n");
 
-    char *ptr = ft_malloc(256);
+    char *ptr = malloc(256);
     printf("%p\n", ptr);
     assert(ptr != NULL);
     
@@ -35,7 +35,7 @@ void test_shrink_in_place(void) {
     ptr[255] = '\0';
 
     // Shrink from 256 bytes down to 64 bytes
-    char *new_ptr = ft_realloc(ptr, 64);
+    char *new_ptr = realloc(ptr, 64);
 
     // Pointer address MUST remain identical for in-place shrink
     assert(new_ptr == ptr);
@@ -45,7 +45,7 @@ void test_shrink_in_place(void) {
         assert(new_ptr[i] == 'A');
     }
 
-    ft_free(new_ptr);
+    free(new_ptr);
     printf("   PASSED! ✅\n\n");
 }
 
@@ -53,18 +53,18 @@ void test_expand_in_place(void) {
     printf("3. Testing in-place expansion (free neighbor)... 🧪\n");
 
     // Allocate two adjacent blocks
-    char *block1 = ft_malloc(64);
-    char *block2 = ft_malloc(64);
+    char *block1 = malloc(64);
+    char *block2 = malloc(64);
     assert(block1 != NULL && block2 != NULL);
 
     memset(block1, 'B', 63);
     block1[63] = '\0';
 
     // Free block2 so it becomes a free neighbor for block1
-    ft_free(block2);
+    free(block2);
 
     // Realloc block1 to absorb block2's space (up to 128 bytes)
-    char *new_block1 = ft_realloc(block1, 128);
+    char *new_block1 = realloc(block1, 128);
 
     // Base pointer MUST remain identical because it expanded into the free neighbor
     assert(new_block1 == block1);
@@ -74,7 +74,7 @@ void test_expand_in_place(void) {
         assert(new_block1[i] == 'B');
     }
 
-    ft_free(new_block1);
+    free(new_block1);
     printf("   PASSED! ✅\n\n");
 }
 
@@ -82,14 +82,14 @@ void test_fallback_copy(void) {
     printf("4. Testing fallback allocation & copy... 🧪\n");
 
     // Allocate block1 and block2
-    char *block1 = ft_malloc(64);
-    char *block2 = ft_malloc(64); // Kept busy so block1 CANNOT expand in place
+    char *block1 = malloc(64);
+    char *block2 = malloc(64); // Kept busy so block1 CANNOT expand in place
 
     memset(block1, 'C', 63);
     block1[63] = '\0';
 
     // Realloc block1 to a size that cannot fit in place (256 bytes)
-    char *new_block1 = ft_realloc(block1, 256);
+    char *new_block1 = realloc(block1, 256);
 
     // New pointer MUST be different from the original pointer
     assert(new_block1 != block1);
@@ -99,8 +99,8 @@ void test_fallback_copy(void) {
         assert(new_block1[i] == 'C');
     }
 
-    ft_free(new_block1);
-    ft_free(block2);
+    free(new_block1);
+    free(block2);
     printf("   PASSED! ✅\n\n");
 }
 
@@ -111,26 +111,26 @@ void test_heavy_churn_and_coalescing(void) {
 
     // Phase 1: Allocate 100 blocks
     for (int i = 0; i < 100; i++) {
-        ptrs[i] = ft_malloc(32 + (i % 4) * 16);
+        ptrs[i] = malloc(32 + (i % 4) * 16);
         assert(ptrs[i] != NULL);
     }
 
     // Phase 2: Free every EVEN index to create a "checkerboard" pattern of free blocks
     for (int i = 0; i < 100; i += 2) {
-        ft_free(ptrs[i]);
+        free(ptrs[i]);
     }
 
     // Phase 3: Expand odd-indexed blocks in place into their freed neighbors
     for (int i = 1; i < 100; i += 2) {
         void *old_ptr = ptrs[i];
         // Request double size — should merge with freed ptrs[i-1] or ptrs[i+1]
-        void *new_ptr = ft_realloc(old_ptr, 96);
+        void *new_ptr = realloc(old_ptr, 96);
         assert(new_ptr == old_ptr); 
     }
 
     // Cleanup remaining blocks
     for (int i = 1; i < 100; i += 2) {
-        ft_free(ptrs[i]);
+        free(ptrs[i]);
     }
 
     printf("   PASSED! ✅\n\n");
@@ -140,7 +140,7 @@ void test_exact_boundary_split(void) {
     printf("6. Testing exact boundary split threshold... 🧪\n");
 
     // Allocate 128 bytes
-    char *ptr = ft_malloc(128);
+    char *ptr = malloc(128);
     assert(ptr != NULL);
 
     // Realloc down to a size that leaves EXACTLY not enough room for a header + MIN_ALLOC
@@ -148,14 +148,14 @@ void test_exact_boundary_split(void) {
     size_t target_leftover = sizeof(t_header) + 16 - 1; // Assuming MIN_ALLOCATION_SIZE is 16
     size_t new_size = 128 - target_leftover;
 
-    char *new_ptr = ft_realloc(ptr, new_size);
+    char *new_ptr = realloc(ptr, new_size);
     assert(new_ptr == ptr); // Must shrink in place WITHOUT splitting
 
-    ft_free(new_ptr);
+    free(new_ptr);
     printf("   PASSED! ✅\n\n");
 }
 int main(void) {
-    printf("========== RUNNING FT_REALLOC TEST SUITE ==========\n\n");
+    printf("========== RUNNING REALLOC TEST SUITE ==========\n\n");
 
     test_null_and_zero();
     test_shrink_in_place();

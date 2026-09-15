@@ -36,6 +36,6 @@ typedef struct s_allocator {
 extern t_allocator allocator;
 // extern keyword tells the compiler this is declaration only, no allocation
 
-void    *ft_malloc(size_t size);
-void    *ft_realloc(void *ptr, size_t size);
-void    ft_free(void *ptr);
+void    *malloc(size_t size);
+void    *realloc(void *ptr, size_t size);
+void    free(void *ptr);

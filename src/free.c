@@ -59,7 +59,7 @@ void    merge_neighbors(t_header *curr_n, t_header *curr_p, t_header *header_ptr
     // }
 }
 
-void    ft_free(void *ptr) {
+void    free(void *ptr) {
     if (!ptr)
         return ;
     
