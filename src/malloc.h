@@ -9,6 +9,7 @@
 #include <string.h>
 #include <errno.h>
 #include "../libft/libft.h"
+#include "../libft/ft_printf.h"
 
 #define MIN_ALLOCATION_SIZE 40
 
@@ -39,3 +40,4 @@ extern t_allocator allocator;
 void    *malloc(size_t size);
 void    *realloc(void *ptr, size_t size);
 void    free(void *ptr);
+void    show_alloc_mem(void);

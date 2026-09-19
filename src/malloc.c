@@ -8,13 +8,11 @@ t_allocator allocator = { NULL, 0, NULL, 0, NULL };
 
 int calculate_zone_size(size_t size, size_t page_size) {
     size_t new_page_size = page_size;
-    printf("total size: %zu\n", size);
     if (size > page_size) {
         size_t f = (size + page_size - 1) / page_size;
         new_page_size = page_size * f;
     }
-    
-    printf("new page size: %zu\n", new_page_size);
+
     return new_page_size;
 }
 
@@ -29,18 +27,15 @@ void    *split_block(size_t total_size, t_header *zone_ptr, size_t zone_size) {
 
             void *block_end_addr = (void *)head + total_size;
 
-            // if (remaining_size >= sizeof(t_header) + 40) {
             if (block_end_addr + sizeof(t_header) + 40 <= zone_end_ptr) {
                 head->is_free = false;
                 head->size = total_size;
-                printf("***********\nis_free: false\nhead->size: %zu\n", head->size);
                 
                 t_header *block_end_ptr = (t_header *)((void*)head + total_size);
     
                 block_end_ptr->is_free = true;
                 block_end_ptr->next = NULL;
                 block_end_ptr->size = remaining_size;
-                printf("is_free: true\nblock end ptr: %zu\n**********\n", remaining_size);
     
                 head->next = block_end_ptr;
                 block_end_ptr->prev = head;
@@ -59,11 +54,14 @@ void    *split_block(size_t total_size, t_header *zone_ptr, size_t zone_size) {
 
 
 void    *allocate_new_zone_region(size_t total_size, t_header *zone_ptr, size_t zone_size) {
-    void *zone_end_ptr = (void*)zone_ptr + zone_size;
+    t_header *curr = zone_ptr;
+    while (curr->next) {
+        curr = curr->next;
+    }
+    t_header *zone_end_ptr = curr;
     t_header *new_region = mmap(NULL, zone_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (new_region == MAP_FAILED) {
-        fprintf(stderr, "mmap failed: %s\n", strerror(errno));
-        exit(1);
+        return NULL;
     }
     new_region->is_free = true;
     new_region->next = NULL;
@@ -79,7 +77,7 @@ void    *allocate_new_zone_region(size_t total_size, t_header *zone_ptr, size_t 
     return res_ptr;
 }
 
-void init_zone(size_t size, enum ZONE zone) {
+int init_zone(size_t size, enum ZONE zone) {
     size_t page_size = 0;
 
     #ifdef __APPLE__
@@ -92,8 +90,7 @@ void init_zone(size_t size, enum ZONE zone) {
         size_t zone_size = calculate_zone_size(size * 100, page_size);
         allocator.tiny = mmap(NULL, zone_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
          if (allocator.tiny == MAP_FAILED) {
-            fprintf(stderr, "mmap failed: %s\n", strerror(errno));
-            exit(1);
+            return EXIT_FAILURE;
         }
         allocator.tiny_zone_size = zone_size;
         allocator.tiny->is_free = true;
@@ -105,8 +102,7 @@ void init_zone(size_t size, enum ZONE zone) {
         size_t zone_size = calculate_zone_size(size * 100, page_size);
         allocator.small = mmap(NULL, zone_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (allocator.small == MAP_FAILED) {
-            fprintf(stderr, "mmap failed: %s\n", strerror(errno));
-            exit(1);
+            return EXIT_FAILURE;
         }
         allocator.small_zone_size = zone_size;
         allocator.small->is_free = true;
@@ -119,8 +115,7 @@ void init_zone(size_t size, enum ZONE zone) {
         t_header *new_large_zone = mmap(NULL, large_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
         if (new_large_zone == MAP_FAILED) {
-            fprintf(stderr, "mmap failed: %s\n", strerror(errno));
-            exit(1);
+            return EXIT_FAILURE;
         }
 
         new_large_zone->is_free = true;
@@ -140,6 +135,7 @@ void init_zone(size_t size, enum ZONE zone) {
             new_large_zone->prev = head;
         }
     }
+    return EXIT_SUCCESS;
 }
 
 void    *malloc(size_t size) {
@@ -149,9 +145,10 @@ void    *malloc(size_t size) {
     void *res_ptr = NULL;
 
     if (size <= n) {
-        printf("TINY\n");
-        if (allocator.tiny == NULL)
-            init_zone(total_size, TINY);
+        if (allocator.tiny == NULL) {
+            if (init_zone(total_size, TINY) == EXIT_FAILURE)
+                return NULL;
+        }
         res_ptr = split_block(total_size, allocator.tiny, allocator.tiny_zone_size);
         if (res_ptr == NULL) {
             res_ptr = allocate_new_zone_region(total_size, allocator.tiny, allocator.tiny_zone_size);
@@ -159,18 +156,18 @@ void    *malloc(size_t size) {
         return res_ptr;
     }
     else if (size > n && size <= m) {
-        printf("SMALL\n");
         if (allocator.small == NULL)
-            init_zone(total_size, SMALL);
+            if (init_zone(total_size, SMALL) == EXIT_FAILURE)
+                return NULL;
         res_ptr = split_block(total_size, allocator.small, allocator.small_zone_size);
         if (res_ptr == NULL) {
-            res_ptr = allocate_new_zone_region(total_size, allocator.tiny, allocator.tiny_zone_size);
+            res_ptr = allocate_new_zone_region(total_size, allocator.small, allocator.small_zone_size);
         }
         return res_ptr;
     }
     else if (size > m) {
-        printf("LARGE\n");
-        init_zone(total_size, LARGE);
+        if (init_zone(total_size, LARGE) == EXIT_FAILURE)
+                return NULL;
         t_header *head = allocator.large;
         while (head) {
             if (head->is_free == true) {

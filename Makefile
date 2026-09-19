@@ -8,21 +8,25 @@ NAME = malloc_test
 
 SRC = main.c
 
-LIBFT_DIR = Libft
+LIBFT_DIR = libft
 LIBFT = $(LIBFT_DIR)/libft.a
+LIBFT_SRC = $(filter-out %_bonus.c,$(wildcard $(LIBFT_DIR)/*.c)) \
+	$(wildcard $(LIBFT_DIR)/*.h)
 
 MALLOC_DIR = src
 MALLOC = $(MALLOC_DIR)/libft_malloc_$(HOSTTYPE).so
+MALLOC_SRC = $(addprefix $(MALLOC_DIR)/,malloc.c free.c realloc.c \
+	show_alloc_mem.c malloc.h)
 
 all: $(NAME)
 
-$(NAME): $(LIBFT) $(MALLOC)
-	$(CC) main.c $(CFLAGS) $(MALLOC) -o $(NAME)
+$(NAME): $(SRC) $(MALLOC) Makefile
+	$(CC) $(SRC) $(CFLAGS) $(MALLOC) -o $(NAME)
 
-$(LIBFT):
+$(LIBFT): $(LIBFT_SRC) $(LIBFT_DIR)/Makefile
 	$(MAKE) -C $(LIBFT_DIR)
 
-$(MALLOC):
+$(MALLOC): $(MALLOC_SRC) $(MALLOC_DIR)/Makefile $(LIBFT)
 	$(MAKE) -C $(MALLOC_DIR)
 
 test: $(NAME)
@@ -38,3 +42,5 @@ fclean: clean
 	rm -f $(NAME)
 
 re: fclean all
+
+.PHONY: all test clean fclean re
