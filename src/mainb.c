@@ -8,7 +8,7 @@ void    test_tiny_zone(void) {
     void *ptrs[150];
 
     for (int i = 0; i < 150; i++) {
-        ptrs[i] = ft_malloc(100);
+        ptrs[i] = malloc(100);
 
         if (ptrs[i] == NULL) {
             printf("❌ Allocation %d failed!\n", i);
@@ -35,7 +35,7 @@ void test_small_zone(void) {
     printf("--> Allocating %d blocks of %zu bytes...\n", num_allocs, alloc_size);
 
     for (int i = 0; i < num_allocs; i++) {
-        ptrs[i] = ft_malloc(alloc_size);
+        ptrs[i] = malloc(alloc_size);
 
         if (ptrs[i] == NULL) {
             printf("❌ Alloc %d failed (NULL)\n", i);
@@ -59,22 +59,22 @@ void test_large_zone(void) {
 
     // Case 1: Just over SMALL limit (e.g., 2048 bytes)
     printf("--> Requesting 2048 bytes (Just over SMALL boundary)\n");
-    void *p1 = ft_malloc(2048);
+    void *p1 = malloc(2048);
     if (p1) memset(p1, 'A', 2048);
     printf("  p1 address = %p\n", p1);
 
     // Case 2: Multi-page LARGE allocation (e.g., 50,000 bytes > 16KB page)
     printf("--> Requesting 50000 bytes (Multi-page request)\n");
-    void *p2 = ft_malloc(50000);
+    void *p2 = malloc(50000);
     if (p2) memset(p2, 'B', 50000);
     printf("  p2 address = %p\n", p2);
 }
 
 int main() {
-    // char *ptr1 = ft_malloc(200); // First SMALL allocation
-    // char *ptr2 = ft_malloc(300); // Second SMALL allocation
-    // char *ptr3 = ft_malloc(6000); // Third SMALL allocation
-    // char *ptr4 = ft_malloc(6000); // Fourth SMALL allocation
+    // char *ptr1 = malloc(200); // First SMALL allocation
+    // char *ptr2 = malloc(300); // Second SMALL allocation
+    // char *ptr3 = malloc(6000); // Third SMALL allocation
+    // char *ptr4 = malloc(6000); // Fourth SMALL allocation
 
     // printf("ptr1 address: %p\n", (void *)ptr1);
     // printf("ptr2 address: %p\n", (void *)ptr2);
