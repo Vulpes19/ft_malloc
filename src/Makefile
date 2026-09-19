@@ -6,7 +6,7 @@ NAME = libft_malloc_$(HOSTTYPE).so
 SYM_LINK = libft_malloc.so
 
 CC = cc
-CFLAGS = -fsanitize=address -g -Wall -Wextra -Werror
+CFLAGS = -Wall -Wextra -Werror -fPIC
 
 SRC = malloc.c free.c realloc.c show_alloc_mem.c
 OBJ = $(SRC:.c=.o)

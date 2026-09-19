@@ -3,7 +3,7 @@ ifeq ($(HOSTTYPE),)
 endif
 
 CC = cc
-CFLAGS = -fsanitize=address -g -Wall -Wextra -Werror
+CFLAGS = -Wall -Wextra -Werror
 NAME = malloc_test
 
 SRC = main.c

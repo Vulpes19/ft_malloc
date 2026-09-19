@@ -218,25 +218,15 @@ void test_exact_boundary_split(void) {
     printf("   PASSED! ✅\n\n");
 }
 int main(void) {
-    // printf("========== RUNNING REALLOC TEST SUITE ==========\n\n");
+    printf("========== RUNNING REALLOC TEST SUITE ==========\n\n");
 
-    // test_null_and_zero();
-    // test_shrink_in_place();
-    // test_expand_in_place();
-    // test_fallback_copy();
-    // test_heavy_churn_and_coalescing();
-    // test_exact_boundary_split();
+    test_null_and_zero();
+    test_shrink_in_place();
+    test_expand_in_place();
+    test_fallback_copy();
+    test_heavy_churn_and_coalescing();
+    test_exact_boundary_split();
 
-    // printf("================ ALL TESTS PASSED! 🎉 ================\n");
-    // printf("========== RUNNING MALLOC TEST SUITE ==========\n\n");
-    // test_tiny_zone();
-    // show_alloc_mem();
-    // printf("================ ALL TESTS PASSED! 🎉 ================\n");
-
-    // printf("========= SMALL TESTS ===========\n");
-    test_small_zone();
-    test_large_zone();
-    show_alloc_mem();
 
     return 0;
 }
